@@ -10,7 +10,7 @@ interface ValidationMessages {
 
 export const createAmountValidationFn = (
   decimals: number | bigint,
-  messages: ValidationMessages,
+  messages: ValidationMessages = {},
   parsedMaxAmount?: bigint,
 ) => {
   const normalizedDecimals = Number(decimals);
@@ -41,7 +41,7 @@ export const createAmountValidationFn = (
         return maxMessage;
       }
 
-      const decimalsAmount = value.split(".")[1].length;
+      const decimalsAmount = value.split(".")[1]?.length ?? 0;
 
       if (decimalsAmount > normalizedDecimals) {
         return decimalsConstraint;
