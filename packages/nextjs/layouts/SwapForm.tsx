@@ -13,9 +13,10 @@ import {
   useFieldArray,
   useForm,
 } from "react-hook-form";
-import { formatUnits } from "viem";
 import { ArrowsRightLeftIcon } from "@heroicons/react/24/outline";
-import { SimulationResult, doButterSwapSimulation, doUniSwapSimulation } from "~~/utils/math";
+import { SlippageToleranceOption } from "~~/components/SlippageToleranceOption";
+import { SwapsResultsView } from "~~/components/SwapsResultsView";
+import { SimulationResult, doButterSwapSimulation, doUniSwapSimulation, getAmountOut } from "~~/utils/math";
 import { notification } from "~~/utils/scaffold-eth";
 import { createAmountValidationFn } from "~~/utils/validations";
 
@@ -37,7 +38,6 @@ interface SwapsResults {
   uniSwap: SimulationResult;
 }
 
-const precisionMultiplier = BigInt(10) ** BigInt(18);
 const slippageToleranceOptions = ["0.1", "0.5", "1", "5", "10"];
 
 const validateAmount = createAmountValidationFn(0, { decimalsConstraint: "Must be integer" });
@@ -83,10 +83,16 @@ export const SwapForm = () => {
         amountOut: (BigInt(swap.amountOut) * BigInt((100 - Number(swap.slippageTolerance)) * 10)) / BigInt(1000),
       })),
     };
-    setSwapsResults({
-      butterSwap: doButterSwapSimulation([processedValues.initialA, processedValues.initialB], processedValues.swaps),
-      uniSwap: doUniSwapSimulation([processedValues.initialA, processedValues.initialB], processedValues.swaps),
-    });
+    console.log("inputs", [processedValues.initialA, processedValues.initialB], processedValues.swaps);
+    try {
+      setSwapsResults({
+        butterSwap: doButterSwapSimulation([processedValues.initialA, processedValues.initialB], processedValues.swaps),
+        uniSwap: doUniSwapSimulation([processedValues.initialA, processedValues.initialB], processedValues.swaps),
+      });
+    } catch (error) {
+      console.error(error);
+      notification.error(error instanceof Error ? error.message : JSON.stringify(error));
+    }
   }, []);
 
   return (
@@ -157,72 +163,8 @@ export const SwapForm = () => {
 
         {swapsResults && (
           <>
-            <p className="text-sm">Liquidity after swaps in ButterSwap:</p>
-            {swapsResults.butterSwap.reserves.map((reserve, index) => (
-              <p key={index}>
-                {reserve.toString()} {index === 0 ? "T0" : "T1"}
-              </p>
-            ))}
-
-            <p className="text-sm">ButterSwap swaps</p>
-            <table className="table table-zebra">
-              <thead>
-                <tr>
-                  <th>Input</th>
-                  <th>Output</th>
-                  <th>Price</th>
-                </tr>
-              </thead>
-              <tbody>
-                {swapsResults.butterSwap.swaps.map(({ amountIn, amountOut, tokenIn }, index) => (
-                  <tr key={index}>
-                    <td>
-                      {amountIn.toString()} {tokenIn === 0 ? "T0" : "T1"}
-                    </td>
-                    <td>
-                      {amountOut.toString()} {tokenIn === 0 ? "T1" : "T0"}
-                    </td>
-                    <td>
-                      {formatUnits((amountOut * precisionMultiplier) / amountIn, 18)}{" "}
-                      {tokenIn === 0 ? "T1 / T0" : "T0 / T1"}
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-
-            <p className="text-sm">Liquidity after swaps in Uniswap:</p>
-            {swapsResults.uniSwap.reserves.map((reserve, index) => (
-              <p key={index}>
-                {reserve.toString()} {index === 0 ? "T0" : "T1"}
-              </p>
-            ))}
-            <p className="text-sm">UniSwap swaps</p>
-            <table className="table table-zebra">
-              <thead>
-                <tr>
-                  <th>Input</th>
-                  <th>Output</th>
-                  <th>Price</th>
-                </tr>
-              </thead>
-              <tbody>
-                {swapsResults.uniSwap.swaps.map(({ amountIn, amountOut, tokenIn }, index) => (
-                  <tr key={index}>
-                    <td>
-                      {amountIn.toString()} {tokenIn === 0 ? "T0" : "T1"}
-                    </td>
-                    <td>
-                      {amountOut.toString()} {tokenIn === 0 ? "T1" : "T0"}
-                    </td>
-                    <td>
-                      {formatUnits((amountOut * precisionMultiplier) / amountIn, 18)}{" "}
-                      {tokenIn === 0 ? "T1 / T0" : "T0 / T1"}
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
+            <SwapsResultsView result={swapsResults.butterSwap} dexName="ButterSwap" />
+            <SwapsResultsView result={swapsResults.uniSwap} dexName="UniSwap" />
           </>
         )}
       </div>
@@ -244,8 +186,8 @@ export const SwapItem = ({ errors, index, onRemoveClick, setValue, register, wat
   const tokenInPath: `swapsParams.${number}.tokenIn` = `swapsParams.${index}.tokenIn`;
   const amountInPath: `swapsParams.${number}.amountIn` = `swapsParams.${index}.amountIn`;
   const amountOutPath: `swapsParams.${number}.amountOut` = `swapsParams.${index}.amountOut`;
-  const amountIn = watch(amountInPath);
-  const amountOut = watch(amountOutPath);
+  const initialA = watch("initialA");
+  const initialB = watch("initialB");
   const tokenIn = watch(tokenInPath);
   const slippageTolerance = watch(`swapsParams.${index}.slippageTolerance`);
   const amountInError = getErrorAfterSubmit(amountInPath, errors, 1);
@@ -253,9 +195,28 @@ export const SwapItem = ({ errors, index, onRemoveClick, setValue, register, wat
 
   const handleReverseSwap = useCallback(() => {
     setValue(tokenInPath, tokenIn === "0" ? "1" : "0");
-    setValue(amountInPath, amountOut);
-    setValue(amountOutPath, amountIn);
-  }, [amountInPath, amountOutPath, amountIn, amountOut, tokenIn, setValue, tokenInPath]);
+    setValue(amountInPath, "");
+    setValue(amountOutPath, "");
+  }, [amountInPath, amountOutPath, tokenIn, setValue, tokenInPath]);
+
+  const { onChange: hookFormOnAmountInChange, ...restAmountInHookFormProps } = register(amountInPath, {
+    validate: validateAmount,
+  });
+  const handleAmountInChange = useCallback(
+    (event: React.ChangeEvent<HTMLInputElement>) => {
+      hookFormOnAmountInChange(event);
+      const newAmountIn = event.target.value;
+      if ([newAmountIn, initialA, initialB].every(value => validateAmount(value) === true)) {
+        setValue(
+          amountOutPath,
+          getAmountOut([BigInt(initialA), BigInt(initialB)], BigInt(newAmountIn), Number(tokenIn) as 0 | 1).toString(),
+        );
+      } else {
+        setValue(amountOutPath, "");
+      }
+    },
+    [amountOutPath, hookFormOnAmountInChange, initialA, initialB, setValue, tokenIn],
+  );
 
   return (
     <>
@@ -271,7 +232,8 @@ export const SwapItem = ({ errors, index, onRemoveClick, setValue, register, wat
                 type="text"
                 placeholder="0"
                 className="grow w-full"
-                {...register(amountInPath, { validate: validateAmount })}
+                {...restAmountInHookFormProps}
+                onChange={handleAmountInChange}
               />
               <div className="h-full bordered border-r ml-2" />
               <button className="btn btn-ghost w-12 rounded-l-none" type="button">
@@ -295,6 +257,7 @@ export const SwapItem = ({ errors, index, onRemoveClick, setValue, register, wat
               type="text"
               placeholder="0"
               className="grow w-full"
+              readOnly
               {...register(amountOutPath, { validate: validateAmount })}
             />
             <div className="h-full bordered border-r ml-2" />
@@ -328,28 +291,5 @@ export const SwapItem = ({ errors, index, onRemoveClick, setValue, register, wat
         </div>
       </div>
     </>
-  );
-};
-
-interface SlippageToleranceOption {
-  value: string;
-  isFirst: boolean;
-  isLast: boolean;
-  isSelected: boolean;
-  onClick: (value: string) => void;
-}
-
-const SlippageToleranceOption = ({ value, isFirst, isLast, isSelected, onClick }: SlippageToleranceOption) => {
-  const handleClick = useCallback(() => onClick(value), [onClick, value]);
-
-  return (
-    <button
-      type="button"
-      className={clsx("btn btn-xs flex-1", !isFirst && "rounded-l-none", isSelected && "btn-primary")}
-      style={isLast ? {} : { borderTopRightRadius: 0, borderBottomRightRadius: 0 }}
-      onClick={handleClick}
-    >
-      {value}%
-    </button>
   );
 };

@@ -38,7 +38,7 @@ export function getAmountOut(reserves: [bigint, bigint], amountIn: bigint, token
   const denominator = reserveIn * 1000n + amountInWithFee;
   return numerator / denominator;
 }
-// eslint-disable-next-line @typescript-eslint/no-unused-vars
+
 export function doUniSwapSimulation(reserves: [bigint, bigint], swaps: SwapParams[]): SimulationResult {
   const result: SwapResult[] = [];
   for (const swap of swaps) {
