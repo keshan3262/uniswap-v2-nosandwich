@@ -4,12 +4,15 @@ import './interfaces/IButterERC1155.sol';
 import './libraries/SafeMath.sol';
 import './ERC1155.sol';
 
-abstract contract ButterERC1155 is IButterERC1155, ERC1155Mintable {
+abstract contract ButterERC1155 is IButterERC1155, ERC1155Mintable, ERC1155Permit {
     using SafeMath for uint;
 
     uint8 public constant decimals = 18;
     bytes32 public override DOMAIN_SEPARATOR;
     string public constant name = 'Uniswap V2 Sandwich';
+
+    constant public uint256 LP_TOKEN_ID = 0;
+
     constructor() public {
         uint chainId;
         assembly {
