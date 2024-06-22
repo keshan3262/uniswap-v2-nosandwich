@@ -5,7 +5,7 @@ interface SwapParams {
   tokenIn: 0 | 1;
 }
 
-interface SwapResult {
+export interface SwapResult {
   amountIn: bigint;
   amountOut: bigint;
   status: "success" | "failure";

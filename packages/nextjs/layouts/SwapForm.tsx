@@ -83,7 +83,6 @@ export const SwapForm = () => {
         amountOut: (BigInt(swap.amountOut) * BigInt((100 - Number(swap.slippageTolerance)) * 10)) / BigInt(1000),
       })),
     };
-    console.log("inputs", [processedValues.initialA, processedValues.initialB], processedValues.swaps);
     try {
       setSwapsResults({
         butterSwap: doButterSwapSimulation([processedValues.initialA, processedValues.initialB], processedValues.swaps),
@@ -161,12 +160,7 @@ export const SwapForm = () => {
           Swap
         </button>
 
-        {swapsResults && (
-          <>
-            <SwapsResultsView result={swapsResults.butterSwap} dexName="ButterSwap" />
-            <SwapsResultsView result={swapsResults.uniSwap} dexName="UniSwap" />
-          </>
-        )}
+        {swapsResults && <SwapsResultsView results={swapsResults} />}
       </div>
     </form>
   );
