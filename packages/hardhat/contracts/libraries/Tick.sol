@@ -49,18 +49,14 @@ library Tick {
 	/// @notice Updates a tick and returns true if the tick was flipped from initialized to uninitialized, or vice versa
 	/// @param self The mapping containing all tick information for initialized ticks
 	/// @param tick The tick that will be updated
-	/// @param tickCurrent The current tick
 	/// @param liquidityDelta A new amount of liquidity to be added (subtracted) when tick is crossed from left to right (right to left)
-	/// @param tickCumulative The tick * time elapsed since the pool was first initialized
 	/// @param upper true for updating a position's upper tick, or false for updating a position's lower tick
 	/// @param maxLiquidity The maximum liquidity allocation for a single tick
 	/// @return flipped Whether the tick was flipped from initialized to uninitialized, or vice versa
 	function update(
 		mapping(int24 => Tick.Info) storage self,
 		int24 tick,
-		int24 tickCurrent,
 		int128 liquidityDelta,
-		int56 tickCumulative,
 		bool upper,
 		uint128 maxLiquidity
 	) internal returns (bool flipped) {

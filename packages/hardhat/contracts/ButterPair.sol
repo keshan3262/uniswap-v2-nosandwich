@@ -300,11 +300,45 @@ contract ButterPair is IButterPair, ButterERC20 {
 		);
 
 		if (amount0In > 0) {
+			// TODO: fix limit
 			token0SwapShare.mint(to, 0, amount0In);
 		}
 		if (amount1In > 0) {
 			token1SwapShare.mint(to, 0, amount1In);
 		}
+
+		// // Update TICKs
+		// flippedLower = ticks.update(
+		//         tickLower,
+		//         tick,
+		//         liquidityDelta,
+		//         _feeGrowthGlobal0X128,
+		//         _feeGrowthGlobal1X128,
+		//         secondsPerLiquidityCumulativeX128,
+		//         tickCumulative,
+		//         time,
+		//         false,
+		//         maxLiquidityPerTick
+		//     );
+		//     flippedUpper = ticks.update(
+		//         tickUpper,
+		//         tick,
+		//         liquidityDelta,
+		//         _feeGrowthGlobal0X128,
+		//         _feeGrowthGlobal1X128,
+		//         secondsPerLiquidityCumulativeX128,
+		//         tickCumulative,
+		//         time,
+		//         true,
+		//         maxLiquidityPerTick
+		//     );
+
+		//     if (flippedLower) {
+		//         tickBitmap.flipTick(tickLower, tickSpacing);
+		//     }
+		//     if (flippedUpper) {
+		//         tickBitmap.flipTick(tickUpper, tickSpacing);
+		//     }
 
 		_update(
 			balance0,
