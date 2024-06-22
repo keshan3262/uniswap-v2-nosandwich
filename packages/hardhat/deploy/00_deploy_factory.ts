@@ -1,6 +1,6 @@
 import { HardhatRuntimeEnvironment } from "hardhat/types";
 import { DeployFunction } from "hardhat-deploy/types";
-import { UniswapV2Factory } from "../typechain-types";
+import { ButterFactory } from "../typechain-types";
 
 /**
  * Deploys a contract named "YourContract" using the deployer account and
@@ -22,7 +22,7 @@ const deployFactory: DeployFunction = async function (hre: HardhatRuntimeEnviron
   const { deployer } = await hre.getNamedAccounts();
   const { deploy } = hre.deployments;
 
-  const { newlyDeployed } = await deploy("UniswapV2Factory", {
+  const { newlyDeployed } = await deploy("ButterFactory", {
     from: deployer,
     // Contract constructor arguments
     args: [deployer],
@@ -33,12 +33,12 @@ const deployFactory: DeployFunction = async function (hre: HardhatRuntimeEnviron
   });
 
   // Get the deployed contract to interact with it after deploying.
-  const factory = await hre.ethers.getContract<UniswapV2Factory>("UniswapV2Factory", deployer);
+  const factory = await hre.ethers.getContract<ButterFactory>("ButterFactory", deployer);
   console.log("👋 Factory at:", await factory.getAddress());
   if (newlyDeployed) {
     console.error("INIT_CODE_HASH:", await factory.INIT_CODE_HASH());
-    console.warn("Please save the INIT_CODE_HASH for the UniswapV2Router deployment.");
-    console.warn("DO NOT deploy the UniswapV2Router contract before changing the INIT_CODE_HASH.");
+    console.warn("Please save the INIT_CODE_HASH for the ButterRouter deployment.");
+    console.warn("DO NOT deploy the ButterRouter contract before changing the INIT_CODE_HASH.");
     process.exit(0);
   }
 };
