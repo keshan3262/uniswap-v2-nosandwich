@@ -29,6 +29,15 @@ export interface SimulationResult {
   swaps: SwapResult[];
 }
 
+export function getAmountOut(reserves: [bigint, bigint], amountIn: bigint, tokenIn: 0 | 1) {
+  const reserveIn = reserves[tokenIn];
+  const reserveOut = reserves[1 - tokenIn];
+
+  const amountInWithFee = amountIn * 997n;
+  const numerator = amountInWithFee * reserveOut;
+  const denominator = reserveIn * 1000n + amountInWithFee;
+  return numerator / denominator;
+}
 // eslint-disable-next-line @typescript-eslint/no-unused-vars
 export function doUniSwapSimulation(reserves: [bigint, bigint], swaps: SwapParams[]): SimulationResult {
   const result: SwapResult[] = [];
@@ -43,13 +52,7 @@ export function doUniSwapSimulation(reserves: [bigint, bigint], swaps: SwapParam
       continue;
     }
 
-    const reserveIn = reserves[swap.tokenIn];
-    const reserveOut = reserves[1 - swap.tokenIn];
-
-    const amountInWithFee = swap.amountIn * 997n;
-    const numerator = amountInWithFee * reserveOut;
-    const denominator = reserveIn * 1000n + amountInWithFee;
-    const amountOut = numerator / denominator;
+    const amountOut = getAmountOut(reserves, swap.amountIn, swap.tokenIn);
 
     if (amountOut < swap.amountOut) {
       result.push({
@@ -68,8 +71,8 @@ export function doUniSwapSimulation(reserves: [bigint, bigint], swaps: SwapParam
       tokenIn: swap.tokenIn,
     });
 
-    reserves[swap.tokenIn] = reserveIn + swap.amountIn;
-    reserves[1 - swap.tokenIn] = reserveOut - amountOut;
+    reserves[swap.tokenIn] += swap.amountIn;
+    reserves[1 - swap.tokenIn] -= amountOut;
   }
 
   return {
