@@ -1,10 +1,10 @@
 pragma solidity =0.6.6;
 
-import './interfaces/IUniswapV2ERC1155.sol';
+import './interfaces/IButterERC1155.sol';
 import './libraries/SafeMath.sol';
 import './ERC1155.sol';
 
-abstract contract UniswapV2ERC1155 is IUniswapV2ERC1155, ERC1155Mintable {
+abstract contract ButterERC1155 is IButterERC1155, ERC1155Mintable {
     using SafeMath for uint;
 
     uint8 public constant decimals = 18;

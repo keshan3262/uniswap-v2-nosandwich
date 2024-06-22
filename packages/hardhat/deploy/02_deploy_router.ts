@@ -1,6 +1,6 @@
 import { HardhatRuntimeEnvironment } from "hardhat/types";
 import { DeployFunction } from "hardhat-deploy/types";
-import { UniswapV2Factory, WrappedNativeToken, UniswapV2Router02 } from "../typechain-types";
+import { ButterFactory, WrappedNativeToken, ButterRouter02 } from "../typechain-types";
 
 /**
  * Deploys a contract named "YourContract" using the deployer account and
@@ -22,17 +22,17 @@ const deployRouter: DeployFunction = async function (hre: HardhatRuntimeEnvironm
   const { deployer } = await hre.getNamedAccounts();
   const { deploy } = hre.deployments;
 
-  const factory = await hre.ethers.getContract<UniswapV2Factory>("UniswapV2Factory", deployer);
+  const factory = await hre.ethers.getContract<ButterFactory>("ButterFactory", deployer);
   const weth = await hre.ethers.getContract<WrappedNativeToken>("WrappedNativeToken", deployer);
   // Get the deployed contract to interact with it after deploying.
-  await deploy("UniswapV2Router02", {
+  await deploy("ButterRouter02", {
     from: deployer,
     args: [await factory.getAddress(), await weth.getAddress()],
     log: true,
     autoMine: true,
   });
 
-  const router = await hre.ethers.getContract<UniswapV2Router02>("UniswapV2Router02", deployer);
+  const router = await hre.ethers.getContract<ButterRouter02>("ButterRouter02", deployer);
   console.log("👋 Router deployed:", await router.getAddress());
 };
 

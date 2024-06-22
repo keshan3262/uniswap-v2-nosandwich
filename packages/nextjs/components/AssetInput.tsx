@@ -1,7 +1,6 @@
 "use client";
 
 import { useCallback, useMemo, useRef } from "react";
-import { AssetItem, AssetProps } from "./AssetItem";
 import clsx from "clsx";
 import { PathValue, UseFormReturn } from "react-hook-form";
 
@@ -10,6 +9,13 @@ export const ETH_ADDRESS = "eth";
 type FormValuesFragment<InputName extends string, ValueInputName extends string> = {
   [k in InputName | ValueInputName]: string;
 };
+
+interface AssetProps {
+  address: string;
+  name: string;
+  symbol: string;
+  decimals: number;
+}
 
 interface AssetInputProps<
   InputName extends string,
@@ -80,12 +86,9 @@ export const AssetInput = <
           </button>
           <h3 className="font-bold text-lg text-center">Select a token</h3>
           {tokens.map(token => (
-            <AssetItem
-              key={token.address}
-              asset={token}
-              selected={token.address === tokenAddress}
-              onClick={handleTokenSelect}
-            />
+            <p key={token.address} onClick={() => handleTokenSelect(token.address)}>
+              {token.symbol}
+            </p>
           ))}
         </div>
       </dialog>
