@@ -26,18 +26,20 @@ const publicClient = createPublicClient({
 });
 
 export const ContractTabs = ({ address, contractData }: PageProps) => {
+  const castAddress = address as `0x${string}`;
+
   const { blocks, transactionReceipts, currentPage, totalBlocks, setCurrentPage } = useFetchBlocks();
   const [activeTab, setActiveTab] = useState("transactions");
   const [isContract, setIsContract] = useState(false);
 
   useEffect(() => {
     const checkIsContract = async () => {
-      const contractCode = await publicClient.getBytecode({ address: address });
+      const contractCode = await publicClient.getBytecode({ address: castAddress });
       setIsContract(contractCode !== undefined && contractCode !== "0x");
     };
 
     checkIsContract();
-  }, [address]);
+  }, [castAddress]);
 
   const filteredBlocks = blocks.filter(block =>
     block.transactions.some(tx => {
@@ -85,8 +87,8 @@ export const ContractTabs = ({ address, contractData }: PageProps) => {
       {activeTab === "code" && contractData && (
         <AddressCodeTab bytecode={contractData.bytecode} assembly={contractData.assembly} />
       )}
-      {activeTab === "storage" && <AddressStorageTab address={address} />}
-      {activeTab === "logs" && <AddressLogsTab address={address} />}
+      {activeTab === "storage" && <AddressStorageTab address={castAddress} />}
+      {activeTab === "logs" && <AddressLogsTab address={castAddress} />}
     </>
   );
 };

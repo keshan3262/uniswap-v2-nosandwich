@@ -76,11 +76,18 @@ module.exports = {
   },
   theme: {
     extend: {
+      keyframes: {
+        "rotate-180-cw": {
+          "0%": { transform: "rotate(0deg)" },
+          "100%": { transform: "rotate(180deg)" },
+        },
+      },
       boxShadow: {
         center: "0 0 12px -2px rgb(0 0 0 / 0.05)",
       },
       animation: {
         "pulse-fast": "pulse 1s cubic-bezier(0.4, 0, 0.6, 1) infinite",
+        "rotate-180-cw": "rotate-180-cw 0.5s linear",
       },
     },
   },

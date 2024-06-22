@@ -41,6 +41,13 @@ const deployTokens: DeployFunction = async function (hre: HardhatRuntimeEnvironm
 
   const token = await hre.ethers.getContract<Token>("Token", deployer);
   console.log("👋 Token:", await token.getAddress());
+
+  await deploy("ERC20", {
+    from: deployer,
+    args: ["Name", "Symbol", 18],
+    log: true,
+    autoMine: true,
+  });
 };
 
 export default deployTokens;
