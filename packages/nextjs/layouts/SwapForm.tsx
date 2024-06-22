@@ -15,7 +15,7 @@ import {
 } from "react-hook-form";
 import { formatUnits } from "viem";
 import { ArrowsRightLeftIcon } from "@heroicons/react/24/outline";
-import { SwapResult, doButterSwapSimulation, doUniSwapSimulation } from "~~/utils/math";
+import { SimulationResult, doButterSwapSimulation, doUniSwapSimulation } from "~~/utils/math";
 import { notification } from "~~/utils/scaffold-eth";
 import { createAmountValidationFn } from "~~/utils/validations";
 
@@ -33,8 +33,8 @@ interface SwapFormValues {
 }
 
 interface SwapsResults {
-  butterSwap: SwapResult[];
-  uniSwap: SwapResult[];
+  butterSwap: SimulationResult;
+  uniSwap: SimulationResult;
 }
 
 const precisionMultiplier = BigInt(10) ** BigInt(18);
@@ -79,14 +79,13 @@ export const SwapForm = () => {
       initialB: BigInt(values.initialB),
       swaps: values.swapsParams.map(swap => ({
         amountIn: BigInt(swap.amountIn),
-        amountOut: BigInt(swap.amountOut),
         tokenIn: swap.tokenIn === "0" ? (0 as const) : (1 as const),
-        minAmountOut: (BigInt(swap.amountOut) * BigInt((100 - Number(swap.slippageTolerance)) * 10)) / BigInt(1000),
+        amountOut: (BigInt(swap.amountOut) * BigInt((100 - Number(swap.slippageTolerance)) * 10)) / BigInt(1000),
       })),
     };
     setSwapsResults({
-      butterSwap: doButterSwapSimulation(processedValues.initialA, processedValues.initialB, processedValues.swaps),
-      uniSwap: doUniSwapSimulation(processedValues.initialA, processedValues.initialB, processedValues.swaps),
+      butterSwap: doButterSwapSimulation([processedValues.initialA, processedValues.initialB], processedValues.swaps),
+      uniSwap: doUniSwapSimulation([processedValues.initialA, processedValues.initialB], processedValues.swaps),
     });
   }, []);
 
@@ -158,6 +157,13 @@ export const SwapForm = () => {
 
         {swapsResults && (
           <>
+            <p className="text-sm">Liquidity after swaps in ButterSwap:</p>
+            {swapsResults.butterSwap.reserves.map((reserve, index) => (
+              <p key={index}>
+                {reserve.toString()} {index === 0 ? "T0" : "T1"}
+              </p>
+            ))}
+
             <p className="text-sm">ButterSwap swaps</p>
             <table className="table table-zebra">
               <thead>
@@ -168,7 +174,7 @@ export const SwapForm = () => {
                 </tr>
               </thead>
               <tbody>
-                {swapsResults.butterSwap.map(({ amountIn, amountOut, tokenIn }, index) => (
+                {swapsResults.butterSwap.swaps.map(({ amountIn, amountOut, tokenIn }, index) => (
                   <tr key={index}>
                     <td>
                       {amountIn.toString()} {tokenIn === 0 ? "T0" : "T1"}
@@ -185,6 +191,12 @@ export const SwapForm = () => {
               </tbody>
             </table>
 
+            <p className="text-sm">Liquidity after swaps in Uniswap:</p>
+            {swapsResults.uniSwap.reserves.map((reserve, index) => (
+              <p key={index}>
+                {reserve.toString()} {index === 0 ? "T0" : "T1"}
+              </p>
+            ))}
             <p className="text-sm">UniSwap swaps</p>
             <table className="table table-zebra">
               <thead>
@@ -195,7 +207,7 @@ export const SwapForm = () => {
                 </tr>
               </thead>
               <tbody>
-                {swapsResults.uniSwap.map(({ amountIn, amountOut, tokenIn }, index) => (
+                {swapsResults.uniSwap.swaps.map(({ amountIn, amountOut, tokenIn }, index) => (
                   <tr key={index}>
                     <td>
                       {amountIn.toString()} {tokenIn === 0 ? "T0" : "T1"}

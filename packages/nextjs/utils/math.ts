@@ -5,7 +5,7 @@ interface SwapParams {
   tokenIn: 0 | 1;
 }
 
-export interface SwapResult {
+interface SwapResult {
   amountIn: bigint;
   amountOut: bigint;
   status: "success" | "failure";
@@ -24,15 +24,15 @@ interface PendingSwapNFT {
   tokenIn: 0 | 1;
 }
 
-interface SimulationResult {
+export interface SimulationResult {
   reserves: [bigint, bigint];
   swaps: SwapResult[];
 }
 
 // eslint-disable-next-line @typescript-eslint/no-unused-vars
-function doUniSwapSimulation(reserves: [bigint, bigint], swaps: SwapParams[]): SimulationResult {
-  let result: SwapResult[] = [];
-  for (let swap of swaps) {
+export function doUniSwapSimulation(reserves: [bigint, bigint], swaps: SwapParams[]): SimulationResult {
+  const result: SwapResult[] = [];
+  for (const swap of swaps) {
     if (swap.amountIn <= 0) {
       result.push({
         amountIn: swap.amountIn,
@@ -43,8 +43,8 @@ function doUniSwapSimulation(reserves: [bigint, bigint], swaps: SwapParams[]): S
       continue;
     }
 
-    let reserveIn = reserves[swap.tokenIn];
-    let reserveOut = reserves[1 - swap.tokenIn];
+    const reserveIn = reserves[swap.tokenIn];
+    const reserveOut = reserves[1 - swap.tokenIn];
 
     const amountInWithFee = swap.amountIn * 997n;
     const numerator = amountInWithFee * reserveOut;
@@ -84,9 +84,9 @@ const NEW_TICK_INFO: TickInfo = {
 };
 
 // price = 1.0001^tick
-const tickToPrice = (tick: number) => {
+/* const tickToPrice = (tick: number) => {
   return 1.0001 ** tick;
-};
+}; */
 
 // tick = log_1.0001(price)
 // tick = log(price) / log(1.0001)
@@ -95,19 +95,18 @@ const priceToTick = (price: number) => {
 };
 
 const infinity = Number.POSITIVE_INFINITY;
-const precision = 1000000n;
 // eslint-disable-next-line @typescript-eslint/no-unused-vars
-function doButterSwapSimulation(reserves: [bigint, bigint], swaps: SwapParams[]): SimulationResult {
-  let result: SwapResult[] = [];
-  let pendingSwaps: PendingSwapNFT[] = [];
-  let ticksInfo: { [tick: number]: TickInfo } = {};
-  let slot0 = {
+export function doButterSwapSimulation(reserves: [bigint, bigint], swaps: SwapParams[]): SimulationResult {
+  const result: SwapResult[] = [];
+  const pendingSwaps: PendingSwapNFT[] = [];
+  const ticksInfo: { [tick: number]: TickInfo } = {};
+  const slot0 = {
     minTickSell: infinity,
     maxTickBuy: 0,
   };
 
   // STORE INTENDS
-  for (let swap of swaps) {
+  for (const swap of swaps) {
     if (swap.amountIn <= 0) {
       result.push({
         amountIn: swap.amountIn,
@@ -189,8 +188,8 @@ function doButterSwapSimulation(reserves: [bigint, bigint], swaps: SwapParams[])
   // console.log(pendingSwaps);
   // console.log(ticksInfo);
   // CLEARING
-  let currentTick = priceToTick(Number(reserves[0]) / Number(reserves[1]));
-  let finalPriceTick: number = currentTick;
+  const currentTick = priceToTick(Number(reserves[0]) / Number(reserves[1]));
+  // let finalPriceTick: number = currentTick;
   // console.log(currentTick);
   const sortedTicks: number[] = Object.keys(ticksInfo)
     .map(tick => Number(tick))
@@ -214,7 +213,7 @@ function doButterSwapSimulation(reserves: [bigint, bigint], swaps: SwapParams[])
     // console.log(tickAfterSwap);
 
     if (tickAfterSwap < slot0.maxTickBuy) {
-      finalPriceTick = tickAfterSwap;
+      // finalPriceTick = tickAfterSwap;
       currentReserves = newReserves;
       // console.log(currentReserves);
 
@@ -248,7 +247,7 @@ function doButterSwapSimulation(reserves: [bigint, bigint], swaps: SwapParams[])
     // console.log(tickAfterSwap);
 
     if (tickAfterSwap > slot0.minTickSell) {
-      finalPriceTick = tickAfterSwap;
+      // finalPriceTick = tickAfterSwap;
       currentReserves = newReserves;
       // console.log(currentReserves);
 
@@ -267,15 +266,16 @@ function doButterSwapSimulation(reserves: [bigint, bigint], swaps: SwapParams[])
   // console.log(currentReserves);
   // console.log(sortedTicks);
   // console.log(finalPriceTick);
-  const price = tickToPrice(finalPriceTick);
+  // const price = tickToPrice(finalPriceTick);
   // console.log(reserves);
   // console.log(currentReserves);
-  const totalReserves0Diff = reserves[0] - currentReserves[0];
-  const totalReserves1Diff = reserves[1] - currentReserves[1];
+  const abs = (value: bigint) => (value < 0 ? -value : value);
+  const totalReserves0Diff = abs(reserves[0] - currentReserves[0]);
+  const totalReserves1Diff = abs(reserves[1] - currentReserves[1]);
   // DISTRIBUTE
   const swapResult: SwapResult[] = [];
-  for (let pendingSwap of pendingSwaps) {
-    const { amountIn, tokenIn, maxTick, minTick } = pendingSwap;
+  for (const pendingSwap of pendingSwaps) {
+    const { amountIn, tokenIn /*, maxTick, minTick */ } = pendingSwap;
     if (tokenIn === 0) {
       // If token0in was sent by user, then he receives token0in*reserves1diff /reserves0diff.
       const amountOut = (amountIn * totalReserves1Diff) / totalReserves0Diff;
