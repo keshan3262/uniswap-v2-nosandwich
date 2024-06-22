@@ -31,6 +31,7 @@
     "@types/qrcode": "^1",
     "@typescript-eslint/eslint-plugin": "latest",
     "@typescript-eslint/parser": "latest",
+    "@uniswap/lib": "^4.0.1-alpha",
     "chai": "^4.3.6",
     "eslint": "^8.26.0",
     "eslint-config-prettier": "^8.5.0",
@@ -42,12 +43,12 @@
     "hardhat-gas-reporter": "^1.0.9",
     "prettier": "^2.8.4",
     "solidity-coverage": "^0.8.5",
+    "solmate": "^6.2.0",
     "ts-node": "^10.9.1",
     "typechain": "^8.1.0",
     "typescript": "^5.1.6"
   },
   "dependencies": {
-    "@openzeppelin/contracts": "^4.8.1",
     "@typechain/ethers-v6": "^0.5.1",
     "dotenv": "^16.0.3",
     "envfile": "^6.18.0",
