@@ -256,6 +256,7 @@ contract ButterPair is IButterPair, ButterERC20 {
 			!(amount0OutLimit > 0 && amount1OutLimit > 0),
 			"Butter: INVALID_OUTPUT_AMOUNT"
 		);
+		// TODO: check amount0OutLimit, amount1OutLimit
 
 		_doClearing();
 
@@ -300,11 +301,10 @@ contract ButterPair is IButterPair, ButterERC20 {
 		);
 
 		if (amount0In > 0) {
-			// TODO: fix limit
-			token0SwapShare.mint(to, 0, amount0In);
+			token0SwapShare.mint(to, amount1OutLimit, amount0In);
 		}
 		if (amount1In > 0) {
-			token1SwapShare.mint(to, 0, amount1In);
+			token1SwapShare.mint(to, amount0OutLimit, amount1In);
 		}
 
 		// // Update TICKs
