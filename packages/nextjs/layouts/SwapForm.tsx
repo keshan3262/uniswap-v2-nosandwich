@@ -16,7 +16,13 @@ import {
 import { ArrowsRightLeftIcon } from "@heroicons/react/24/outline";
 import { SlippageToleranceOption } from "~~/components/SlippageToleranceOption";
 import { SwapsResultsView } from "~~/components/SwapsResultsView";
-import { SimulationResult, doButterSwapSimulation, doUniSwapSimulation, getAmountOut } from "~~/utils/math";
+import {
+  SimulationResult,
+  doButterSwapSimulation,
+  doUniSwapSimulation,
+  getAmountOut,
+  toButterSwapParams,
+} from "~~/utils/math";
 import { notification } from "~~/utils/scaffold-eth";
 import { createAmountValidationFn } from "~~/utils/validations";
 
@@ -85,7 +91,10 @@ export const SwapForm = () => {
     };
     try {
       setSwapsResults({
-        butterSwap: doButterSwapSimulation([processedValues.initialA, processedValues.initialB], processedValues.swaps),
+        butterSwap: doButterSwapSimulation(
+          [processedValues.initialA, processedValues.initialB],
+          toButterSwapParams(processedValues.swaps),
+        ),
         uniSwap: doUniSwapSimulation([processedValues.initialA, processedValues.initialB], processedValues.swaps),
       });
     } catch (error) {
