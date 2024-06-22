@@ -282,3 +282,38 @@ contract ERC1155Mintable is ERC1155 {
         }
     }
 }
+
+/// @title   ERC1155Permit contract
+/// @author  Primitive
+/// @notice  ERC1155 contract with permit extension allowing approvals to be made via signatures
+contract ERC1155Permit is ERC1155, IERC1155Permit {
+    /// @inheritdoc IERC1155Permit
+    mapping(address => uint256) public override nonces;
+
+    /// @dev Typehash of the permit function
+    bytes32 private immutable _PERMIT_TYPEHASH =
+        keccak256("Permit(address owner,address operator,bool approved,uint256 nonce,uint256 deadline)");
+
+    /// @inheritdoc IERC1155Permit
+    function permit(
+        address owner,
+        address operator,
+        bool approved,
+        uint256 deadline,
+        uint8 v,
+        bytes32 r,
+        bytes32 s
+    ) external override {
+        if (block.timestamp > deadline) revert SigExpiredError();
+        bytes32 digest = keccak256(
+            abi.encodePacked(
+                '\x19\x01',
+                DOMAIN_SEPARATOR,
+                keccak256(abi.encode(PERMIT_TYPEHASH, owner, spender, value, nonces[owner]++, deadline))
+            )
+        );
+        address recoveredAddress = ecrecover(digest, v, r, s);
+        require(recoveredAddress != address(0) && recoveredAddress == owner, 'Butter: INVALID_SIGNATURE');
+        _setApprovalForAll(owner, operator, approved);
+    }
+}

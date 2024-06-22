@@ -14,7 +14,7 @@ import "./libraries/SafeCast.sol";
 import "./libraries/Tick.sol";
 import "./libraries/TickBitmap.sol";
 
-contract ButterPair is IButterPair, ButterERC20 {
+contract ButterPair is IButterPair, ButterERC1155 {
 	using SafeMath for uint;
 	using UQ112x112 for uint224;
 
@@ -23,7 +23,7 @@ contract ButterPair is IButterPair, ButterERC20 {
 
 	uint public constant override MINIMUM_LIQUIDITY = 10 ** 3;
 	bytes4 private constant SELECTOR =
-		bytes4(keccak256(bytes("transfer(address,uint256)")));
+		bytes4(keccak256(bytes("safeTransferFrom(address,address,uint256,uint256)")));
 
 	address public override factory;
 	address public override token0;
@@ -77,7 +77,7 @@ contract ButterPair is IButterPair, ButterERC20 {
 
 	function _safeTransfer(address token, address to, uint value) private {
 		(bool success, bytes memory data) = token.call(
-			abi.encodeWithSelector(SELECTOR, to, value)
+			abi.encodeWithSelector(SELECTOR, address(this), to, LP_TOKEN_ID, value)
 		);
 		require(
 			success && (data.length == 0 || abi.decode(data, (bool))),
