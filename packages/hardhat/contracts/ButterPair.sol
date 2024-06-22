@@ -14,6 +14,8 @@ import "./libraries/SafeCast.sol";
 import "./libraries/Tick.sol";
 import "./libraries/TickBitmap.sol";
 
+import "./ButterERC1155.sol";
+
 contract ButterPair is IButterPair, ButterERC20 {
 	using SafeMath for uint;
 	using UQ112x112 for uint224;
@@ -29,11 +31,13 @@ contract ButterPair is IButterPair, ButterERC20 {
 	address public override token0;
 	address public override token1;
 
-	address public token0SwapShare;
-	address public token1SwapShare;
+	IButterERC1155 public token0SwapShare;
+	IButterERC1155 public token1SwapShare;
 
 	uint112 private reserve0; // uses single storage slot, accessible via getReserves
 	uint112 private reserve1; // uses single storage slot, accessible via getReserves
+	uint112 private pendingReserve0; // uses single storage slot, accessible via getReserves
+	uint112 private pendingReserve1; // uses single storage slot, accessible via getReserves
 	uint32 private blockTimestampLast; // uses single storage slot, accessible via getReserves
 
 	uint public override price0CumulativeLast;
@@ -46,7 +50,7 @@ contract ButterPair is IButterPair, ButterERC20 {
 		int24 lastBuyTick;
 	}
 
-	int24 public immutable tickSpacing;
+	int24 public immutable tickSpacing = 10; // TODO: set on deployment
 	Slot0 public slot0;
 
 	mapping(int24 => Tick.Info) public ticks;
@@ -67,11 +71,15 @@ contract ButterPair is IButterPair, ButterERC20 {
 		returns (
 			uint112 _reserve0,
 			uint112 _reserve1,
+			uint112 _pendingReserve0,
+			uint112 _pendingReserve1,
 			uint32 _blockTimestampLast
 		)
 	{
 		_reserve0 = reserve0;
 		_reserve1 = reserve1;
+		_pendingReserve0 = pendingReserve0;
+		_pendingReserve1 = pendingReserve1;
 		_blockTimestampLast = blockTimestampLast;
 	}
 
@@ -100,10 +108,18 @@ contract ButterPair is IButterPair, ButterERC20 {
 		uint amount1Out,
 		address indexed to
 	);
+	event SwapIntention(
+		address indexed sender,
+		uint amount0In,
+		uint amount1In,
+		address indexed to
+	);
 	event Sync(uint112 reserve0, uint112 reserve1);
 
 	constructor() public {
 		factory = msg.sender;
+		// token0SwapShare = new ButterERC1155(address(this), token0);
+		// token1SwapShare = new ButterERC1155(address(this), token1);
 	}
 
 	// called once by the factory at time of deployment
@@ -120,7 +136,9 @@ contract ButterPair is IButterPair, ButterERC20 {
 		uint balance0,
 		uint balance1,
 		uint112 _reserve0,
-		uint112 _reserve1
+		uint112 _reserve1,
+		uint112 _pendingReserve0,
+		uint112 _pendingReserve1
 	) private {
 		require(
 			balance0 <= uint112(-1) && balance1 <= uint112(-1),
@@ -139,13 +157,21 @@ contract ButterPair is IButterPair, ButterERC20 {
 		}
 		reserve0 = uint112(balance0);
 		reserve1 = uint112(balance1);
+		pendingReserve0 = uint112(_pendingReserve0);
+		pendingReserve1 = uint112(_pendingReserve1);
 		blockTimestampLast = blockTimestamp;
 		emit Sync(reserve0, reserve1);
 	}
 
 	// this low-level function should be called from a contract which performs important safety checks
 	function mint(address to) external override lock returns (uint liquidity) {
-		(uint112 _reserve0, uint112 _reserve1, ) = getReserves(); // gas savings
+		(
+			uint112 _reserve0,
+			uint112 _reserve1,
+			uint112 _pendingReserve0,
+			uint112 _pendingReserve1,
+
+		) = getReserves(); // gas savings
 		uint balance0 = IERC20(token0).balanceOf(address(this));
 		uint balance1 = IERC20(token1).balanceOf(address(this));
 		uint amount0 = balance0.sub(_reserve0);
@@ -163,7 +189,14 @@ contract ButterPair is IButterPair, ButterERC20 {
 		require(liquidity > 0, "Butter: INSUFFICIENT_LIQUIDITY_MINTED");
 		_mint(to, liquidity);
 
-		_update(balance0, balance1, _reserve0, _reserve1);
+		_update(
+			balance0,
+			balance1,
+			_reserve0,
+			_reserve1,
+			_pendingReserve0,
+			_pendingReserve1
+		);
 		emit Mint(msg.sender, amount0, amount1);
 	}
 
@@ -171,7 +204,13 @@ contract ButterPair is IButterPair, ButterERC20 {
 	function burn(
 		address to
 	) external override lock returns (uint amount0, uint amount1) {
-		(uint112 _reserve0, uint112 _reserve1, ) = getReserves(); // gas savings
+		(
+			uint112 _reserve0,
+			uint112 _reserve1,
+			uint112 _pendingReserve0,
+			uint112 _pendingReserve1,
+
+		) = getReserves(); // gas savings
 		address _token0 = token0; // gas savings
 		address _token1 = token1; // gas savings
 		uint balance0 = IERC20(_token0).balanceOf(address(this));
@@ -191,33 +230,42 @@ contract ButterPair is IButterPair, ButterERC20 {
 		balance0 = IERC20(_token0).balanceOf(address(this));
 		balance1 = IERC20(_token1).balanceOf(address(this));
 
-		_update(balance0, balance1, _reserve0, _reserve1);
+		_update(
+			balance0,
+			balance1,
+			_reserve0,
+			_reserve1,
+			_pendingReserve0,
+			_pendingReserve1
+		);
 		emit Burn(msg.sender, amount0, amount1, to);
 	}
 
 	// this low-level function should be called from a contract which performs important safety checks
 	function swap(
-		uint amount0Out,
-		uint amount1Out,
+		uint amount0OutLimit,
+		uint amount1OutLimit,
 		address to,
 		bytes calldata data
 	) external override lock {
 		require(
-			amount0Out > 0 || amount1Out > 0,
+			amount0OutLimit > 0 || amount1OutLimit > 0,
 			"Butter: INSUFFICIENT_OUTPUT_AMOUNT"
 		);
 		require(
-			!(amount0Out > 0 && amount1Out > 0),
+			!(amount0OutLimit > 0 && amount1OutLimit > 0),
 			"Butter: INVALID_OUTPUT_AMOUNT"
 		);
 
 		_doClearing();
 
-		(uint112 _reserve0, uint112 _reserve1, ) = getReserves(); // gas savings
-		require(
-			amount0Out < _reserve0 && amount1Out < _reserve1,
-			"Butter: INSUFFICIENT_LIQUIDITY"
-		);
+		(
+			uint112 _reserve0,
+			uint112 _reserve1,
+			uint112 _pendingReserve0,
+			uint112 _pendingReserve1,
+
+		) = getReserves(); // gas savings
 
 		uint balance0;
 		uint balance1;
@@ -229,12 +277,19 @@ contract ButterPair is IButterPair, ButterERC20 {
 			balance0 = IERC20(_token0).balanceOf(address(this));
 			balance1 = IERC20(_token1).balanceOf(address(this));
 		}
-		uint amount0In = balance0 > _reserve0 - amount0Out
-			? balance0 - (_reserve0 - amount0Out)
+		uint amount0In = balance0 > _reserve0 + _pendingReserve0
+			? balance0 - (_reserve0 + _pendingReserve0)
 			: 0;
-		uint amount1In = balance1 > _reserve1 - amount1Out
-			? balance1 - (_reserve1 - amount1Out)
+		uint amount1In = balance1 > _reserve1 + _pendingReserve1
+			? balance1 - (_reserve1 + _pendingReserve1)
 			: 0;
+		require(
+			amount0In <= uint112(-1) && amount1In <= uint112(-1),
+			"Butter: OVERFLOW"
+		);
+
+		_pendingReserve0 = _pendingReserve0 + uint112(amount0In);
+		_pendingReserve1 = _pendingReserve1 + uint112(amount1In);
 		require(
 			amount0In > 0 || amount1In > 0,
 			"Butter: INSUFFICIENT_INPUT_AMOUNT"
@@ -245,14 +300,21 @@ contract ButterPair is IButterPair, ButterERC20 {
 		);
 
 		if (amount0In > 0) {
-			IButterERC1155(token0SwapShare).mint(to, amount0In);
+			token0SwapShare.mint(to, 0, amount0In);
 		}
 		if (amount1In > 0) {
-			IButterERC1155(token1SwapShare).mint(to, amount1In);
+			token1SwapShare.mint(to, 0, amount1In);
 		}
 
-		_update(balance0, balance1, _reserve0, _reserve1);
-		emit Swap(msg.sender, amount0In, amount1In, amount0Out, amount1Out, to);
+		_update(
+			balance0,
+			balance1,
+			_reserve0,
+			_reserve1,
+			_pendingReserve0,
+			_pendingReserve1
+		);
+		emit SwapIntention(msg.sender, amount0In, amount1In, to);
 	}
 
 	// function swap(
@@ -344,7 +406,9 @@ contract ButterPair is IButterPair, ButterERC20 {
 			IERC20(token0).balanceOf(address(this)),
 			IERC20(token1).balanceOf(address(this)),
 			reserve0,
-			reserve1
+			reserve1,
+			pendingReserve0,
+			pendingReserve1
 		);
 	}
 }

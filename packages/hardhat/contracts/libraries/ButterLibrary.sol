@@ -47,7 +47,7 @@ library ButterLibrary {
 		address tokenB
 	) internal view returns (uint reserveA, uint reserveB) {
 		(address token0, ) = sortTokens(tokenA, tokenB);
-		(uint reserve0, uint reserve1, ) = IButterPair(
+		(uint reserve0, uint reserve1, , , ) = IButterPair(
 			pairFor(factory, tokenA, tokenB)
 		).getReserves();
 		(reserveA, reserveB) = tokenA == token0
