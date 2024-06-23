@@ -20,6 +20,7 @@
     "@types/lodash": "^4.17.5",
     "@uniswap/sdk-core": "^4.0.1",
     "@uniswap/v2-sdk": "^3.0.1",
+    "bignumber.js": "^9.1.2",
     "blo": "^1.0.1",
     "burner-connector": "^0.0.8",
     "daisyui": "4.5.0",

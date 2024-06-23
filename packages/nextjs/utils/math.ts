@@ -360,7 +360,7 @@ export function doButterSwapSimulation(reserves: [bigint, bigint], swaps: BSwapP
   slot0.maxTickBuy = newSlot0.maxTickBuy;
   console.log(currentReserves);
   console.log(finalPriceTick);
-  const price = tickToPrice(finalPriceTick);
+  // const price = tickToPrice(finalPriceTick);
 
   const abs = (value: bigint) => (value < 0 ? -value : value);
   const totalReserves0Diff = abs(reserves[0] - currentReserves[0]);

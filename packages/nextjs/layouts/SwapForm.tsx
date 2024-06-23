@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useState } from "react";
+import BigNumber from "bignumber.js";
 import clsx from "clsx";
 import { get } from "lodash";
 import {
@@ -13,6 +14,7 @@ import {
   useFieldArray,
   useForm,
 } from "react-hook-form";
+import { formatUnits, parseUnits } from "viem";
 import { ArrowsRightLeftIcon } from "@heroicons/react/24/outline";
 import { SlippageToleranceOption } from "~~/components/SlippageToleranceOption";
 import { SwapsResultsView } from "~~/components/SwapsResultsView";
@@ -46,7 +48,7 @@ interface SwapsResults {
 
 const slippageToleranceOptions = ["0.1", "0.5", "1", "5", "10"];
 
-const validateAmount = createAmountValidationFn(0, { decimalsConstraint: "Must be integer" });
+const validateAmount = createAmountValidationFn(6);
 
 const getErrorAfterSubmit = (
   path: FieldPath<SwapFormValues>,
@@ -81,14 +83,15 @@ export const SwapForm = () => {
     }
 
     const processedValues = {
-      initialA: BigInt(values.initialA),
-      initialB: BigInt(values.initialB),
+      initialA: parseUnits(values.initialA, 6),
+      initialB: parseUnits(values.initialB, 6),
       swaps: values.swapsParams.map(swap => ({
-        amountIn: BigInt(swap.amountIn),
+        amountIn: parseUnits(swap.amountIn, 6),
         tokenIn: swap.tokenIn === "0" ? (0 as const) : (1 as const),
-        amountOut: (BigInt(swap.amountOut) * BigInt((100 - Number(swap.slippageTolerance)) * 10)) / BigInt(1000),
+        amountOut: parseUnits(swap.amountOut, 6),
       })),
     };
+    console.log("oy vey 1", processedValues);
     try {
       setSwapsResults({
         butterSwap: doButterSwapSimulation(
@@ -192,6 +195,7 @@ export const SwapItem = ({ errors, index, onRemoveClick, setValue, register, wat
   const tokenInPath: `swapsParams.${number}.tokenIn` = `swapsParams.${index}.tokenIn`;
   const amountInPath: `swapsParams.${number}.amountIn` = `swapsParams.${index}.amountIn`;
   const amountOutPath: `swapsParams.${number}.amountOut` = `swapsParams.${index}.amountOut`;
+  const amountIn = watch(amountInPath);
   const initialA = watch("initialA");
   const initialB = watch("initialB");
   const tokenIn = watch(tokenInPath);
@@ -208,20 +212,41 @@ export const SwapItem = ({ errors, index, onRemoveClick, setValue, register, wat
   const { onChange: hookFormOnAmountInChange, ...restAmountInHookFormProps } = register(amountInPath, {
     validate: validateAmount,
   });
-  const handleAmountInChange = useCallback(
-    (event: React.ChangeEvent<HTMLInputElement>) => {
-      hookFormOnAmountInChange(event);
-      const newAmountIn = event.target.value;
+
+  const updateAmountOut = useCallback(
+    (newAmountIn: string, newSlippageTolerance: string) => {
       if ([newAmountIn, initialA, initialB].every(value => validateAmount(value) === true)) {
-        setValue(
-          amountOutPath,
-          getAmountOut([BigInt(initialA), BigInt(initialB)], BigInt(newAmountIn), Number(tokenIn) as 0 | 1).toString(),
+        const amountOutBeforeSlippage = getAmountOut(
+          [BigInt(parseUnits(initialA, 6)), BigInt(parseUnits(initialB, 6))],
+          BigInt(parseUnits(newAmountIn, 6)),
+          Number(tokenIn) as 0 | 1,
         );
+        const amountOut = new BigNumber(amountOutBeforeSlippage.toString())
+          .times(new BigNumber(100).minus(newSlippageTolerance))
+          .div(100)
+          .toFixed(0, BigNumber.ROUND_FLOOR);
+
+        setValue(amountOutPath, formatUnits(BigInt(amountOut), 6));
       } else {
         setValue(amountOutPath, "");
       }
     },
-    [amountOutPath, hookFormOnAmountInChange, initialA, initialB, setValue, tokenIn],
+    [amountOutPath, initialA, initialB, setValue, tokenIn],
+  );
+
+  const handleAmountInChange = useCallback(
+    (event: React.ChangeEvent<HTMLInputElement>) => {
+      hookFormOnAmountInChange(event);
+      updateAmountOut(event.target.value, slippageTolerance);
+    },
+    [hookFormOnAmountInChange, updateAmountOut, slippageTolerance],
+  );
+  const handleSlippageToleranceChange = useCallback(
+    (value: string) => {
+      setValue(`swapsParams.${index}.slippageTolerance`, value);
+      updateAmountOut(amountIn, value);
+    },
+    [amountIn, index, setValue, updateAmountOut],
   );
 
   return (
@@ -291,7 +316,7 @@ export const SwapItem = ({ errors, index, onRemoveClick, setValue, register, wat
               isFirst={optionIndex === 0}
               isLast={optionIndex === slippageToleranceOptions.length - 1}
               isSelected={slippageTolerance === option}
-              onClick={value => setValue(`swapsParams.${index}.slippageTolerance`, value)}
+              onClick={handleSlippageToleranceChange}
             />
           ))}
         </div>

@@ -1,3 +1,4 @@
+import { formatUnits } from "viem";
 import { SimulationResult, SwapResult } from "~~/utils/math";
 
 interface SwapsResults {
@@ -30,9 +31,9 @@ export const SwapsResultsView = ({ results }: SwapsResultsViewProps) => {
             {[0, 1].map(tokenIndex => (
               <tr key={tokenIndex}>
                 <td>T{tokenIndex}</td>
-                <td>{butterSwapReserves[tokenIndex].toString()}</td>
-                <td>{uniSwapReserves[tokenIndex].toString()}</td>
-                <td>{(butterSwapReserves[tokenIndex] - uniSwapReserves[tokenIndex]).toString()}</td>
+                <td>{formatUnits(butterSwapReserves[tokenIndex], 6)}</td>
+                <td>{formatUnits(uniSwapReserves[tokenIndex], 6)}</td>
+                <td>{formatUnits(butterSwapReserves[tokenIndex] - uniSwapReserves[tokenIndex], 6)}</td>
               </tr>
             ))}
           </tbody>
@@ -74,16 +75,16 @@ export const SwapRow = ({ butterSwap, uniSwap }: SwapRowProps) => {
   return (
     <tr>
       <td>
-        {amountIn.toString()} T{tokenIn}
+        {formatUnits(amountIn, 6)} T{tokenIn}
       </td>
       <td>
-        {butterAmountOut.toString()} {outputTokenSymbol}
+        {formatUnits(butterAmountOut, 6)} {outputTokenSymbol}
       </td>
       <td>
-        {uniAmountOut.toString()} {outputTokenSymbol}
+        {formatUnits(uniAmountOut, 6)} {outputTokenSymbol}
       </td>
       <td className={diff > 0n ? "text-success" : "text-error"}>
-        {diff.toString()} {outputTokenSymbol}
+        {butterAmountOut > 0n && uniAmountOut > 0n ? `${formatUnits(diff, 6)} ${outputTokenSymbol}` : "-"}
       </td>
     </tr>
   );
