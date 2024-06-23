@@ -54,7 +54,9 @@ export interface SwapResult {
 
 interface TickInfo {
   supply0Diff: bigint;
+  min0Out: bigint;
   supply1Diff: bigint;
+  min1Out: bigint;
 }
 interface PendingSwapNFT {
   amountIn: bigint;
@@ -92,11 +94,13 @@ export function doUniSwapSimulation(reserves: [bigint, bigint], swaps: SwapParam
     }
 
     const amountOut = getAmountOut(reserves, swap.amountIn, swap.tokenIn);
+    console.log(amountOut);
+    console.log(swap.amountOut);
 
     if (amountOut < swap.amountOut) {
       result.push({
         amountIn: swap.amountIn,
-        amountOut,
+        amountOut: 0n,
         status: "failure",
         tokenIn: swap.tokenIn,
       });
@@ -122,7 +126,9 @@ export function doUniSwapSimulation(reserves: [bigint, bigint], swaps: SwapParam
 
 const NEW_TICK_INFO: TickInfo = {
   supply0Diff: 0n,
+  min0Out: 0n,
   supply1Diff: 0n,
+  min1Out: 0n,
 };
 
 // price = 1.0001^tick
@@ -143,19 +149,12 @@ function doClearing(
   slot0: { minTickSell: number; maxTickBuy: number },
   clearingSteps: Array<any> = [],
 ) {
-  console.log("doClearing");
-  console.log(clearingSteps);
-  console.log(slot0);
-  console.log(ticksInfo);
-  // console.log(ticksInfo);
   const sortedTicks: number[] = Object.keys(ticksInfo)
     .map(tick => Number(tick))
     .sort((a, b) => (a > b ? 1 : -1));
-  // let finalPriceTick: number = currentTick;
-  // console.log(currentTick);
+  console.log(currentTick);
 
-  // console.log(currentReserves);
-  // console.log(slot0.maxTickBuy);
+  console.log(slot0.maxTickBuy);
   while (currentTick < slot0.maxTickBuy) {
     const tickPointer = slot0.maxTickBuy;
     const tickInfo = ticksInfo[slot0.maxTickBuy];
@@ -164,26 +163,17 @@ function doClearing(
       [currentReserves[0], currentReserves[1]],
       [{ amountIn: tickInfo.supply0Diff, tokenIn: 0, amountOut: 0n }],
     );
-    // console.log(newReserves, swaps);
     if (swaps[0].status === "failure") {
       console.log("failure");
       break;
     }
     const tickAfterSwap = priceToTick(Number(newReserves[0]) / Number(newReserves[1]));
-    console.log(tickAfterSwap);
-    console.log(slot0.maxTickBuy);
+    const amountOut = swaps[0].amountOut;
 
-    if (tickAfterSwap < slot0.maxTickBuy) {
-      // finalPriceTick = tickAfterSwap;
+    if (tickInfo.min1Out < amountOut) {
       currentReserves = newReserves;
-      // console.log(currentReserves);
 
       const nextTick = sortedTicks.reverse().find(tick => tick < slot0.maxTickBuy);
-      // console.log(nextTick);
-
-      // console.log(slot0.maxTickBuy);
-      // console.log(nextTick);
-      // TODO: tick at price0
       console.log("SWAP BUY");
       slot0.maxTickBuy = nextTick === undefined ? priceToTick(0) : nextTick;
       clearingSteps.push({
@@ -206,8 +196,6 @@ function doClearing(
       break;
     }
   }
-  // console.log(currentTick);
-  // console.log(slot0.minTickSell);
 
   while (currentTick > slot0.minTickSell) {
     const tickPointer = slot0.minTickSell;
@@ -217,27 +205,19 @@ function doClearing(
       [currentReserves[0], currentReserves[1]],
       [{ amountIn: tickInfo.supply1Diff, tokenIn: 1, amountOut: 0n }],
     );
-    // console.log(newReserves, swaps);
     if (swaps[0].status === "failure") {
       console.log("failure");
       break;
     }
     const tickAfterSwap = priceToTick(Number(newReserves[0]) / Number(newReserves[1]));
-    // console.log(tickAfterSwap);
     console.log("SWAP SELL");
+    const amountOut = swaps[0].amountOut;
 
-    if (tickAfterSwap > slot0.minTickSell) {
-      // finalPriceTick = tickAfterSwap;
+    if (tickInfo.min0Out < amountOut) {
       currentReserves = newReserves;
-      // console.log(currentReserves);
 
       const nextTick = sortedTicks.find(tick => tick > slot0.minTickSell);
-      console.log(nextTick);
-      // if (nextTick === undefined) {
-      //   break;
-      // }
-      // console.log(slot0.minTickSell);
-      // console.log(nextTick);
+
       slot0.minTickSell = nextTick === undefined ? infinity : nextTick;
       clearingSteps.push({
         reserves: { startReserves, endReserves: currentReserves },
@@ -262,13 +242,9 @@ function doClearing(
   // We should check if we need to do more clearing
   // Will be implemented as recursion call.
   // Will optimize later.
-  console.log(currentTick, slot0.maxTickBuy, slot0.minTickSell);
-  console.log(currentReserves);
   // if (currentTick < slot0.maxTickBuy || currentTick > slot0.minTickSell) {
   //   return doClearing(currentTick, currentReserves, ticksInfo, slot0, clearingSteps);
   // }
-  console.log(sortedTicks);
-  console.log(JSON.stringify(clearingSteps, (key, value) => (typeof value === "bigint" ? value.toString() : value), 2));
   return { currentReserves, currentTick, slot0, clearingSteps };
 }
 
@@ -297,13 +273,12 @@ export function doButterSwapSimulation(reserves: [bigint, bigint], swaps: BSwapP
 
     // buy token 1
     if (swap.tokenIn === 0) {
-      // TODO: calculate based on prices
       const minTick = priceToTick(0);
-      // console.log(swap.amountIn / swap.amountOut);
       const maxTick = Number(swap.maxTick);
       if (slot0.maxTickBuy < maxTick) {
         slot0.maxTickBuy = maxTick;
       }
+      const minAmountOut = BigInt(Math.floor(Number(swap.amountIn) / tickToPrice(maxTick)));
 
       pendingSwaps.push({
         amountIn: swap.amountIn,
@@ -320,25 +295,26 @@ export function doButterSwapSimulation(reserves: [bigint, bigint], swaps: BSwapP
       }
       ticksInfo[minTick] = {
         supply0Diff: ticksInfo[minTick].supply0Diff - swap.amountIn,
+        min0Out: ticksInfo[minTick].min0Out,
         supply1Diff: ticksInfo[minTick].supply1Diff,
+        min1Out: ticksInfo[minTick].min1Out,
       };
       ticksInfo[maxTick] = {
         supply0Diff: ticksInfo[maxTick].supply0Diff + swap.amountIn,
+        min0Out: ticksInfo[maxTick].min0Out,
         supply1Diff: ticksInfo[maxTick].supply1Diff,
+        min1Out: ticksInfo[maxTick].min1Out + minAmountOut,
       };
     }
     // sell token 1
     else {
-      // p = reserve0 / reserve1
-      // TODO: calculate prices
-      // console.log(swap.amountOut / swap.amountIn);
-
       const minTick = Number(swap.minTick);
       const maxTick = infinity;
 
       if (slot0.minTickSell > minTick) {
         slot0.minTickSell = minTick;
       }
+      const minAmountOut = BigInt(Math.floor(Number(swap.amountIn) * tickToPrice(minTick)));
 
       pendingSwaps.push({
         amountIn: swap.amountIn,
@@ -355,11 +331,15 @@ export function doButterSwapSimulation(reserves: [bigint, bigint], swaps: BSwapP
       }
       ticksInfo[minTick] = {
         supply0Diff: ticksInfo[minTick].supply0Diff,
+        min0Out: ticksInfo[minTick].min0Out + minAmountOut,
         supply1Diff: ticksInfo[minTick].supply1Diff + swap.amountIn,
+        min1Out: ticksInfo[minTick].min1Out,
       };
       ticksInfo[maxTick] = {
         supply0Diff: ticksInfo[maxTick].supply0Diff,
+        min0Out: ticksInfo[maxTick].min0Out,
         supply1Diff: ticksInfo[maxTick].supply1Diff - swap.amountIn,
+        min1Out: ticksInfo[maxTick].min1Out,
       };
     }
   }
@@ -381,9 +361,7 @@ export function doButterSwapSimulation(reserves: [bigint, bigint], swaps: BSwapP
   console.log(currentReserves);
   console.log(finalPriceTick);
   const price = tickToPrice(finalPriceTick);
-  console.log(price);
-  console.log(reserves);
-  console.log(currentReserves);
+
   const abs = (value: bigint) => (value < 0 ? -value : value);
   const totalReserves0Diff = abs(reserves[0] - currentReserves[0]);
   const totalReserves1Diff = abs(reserves[1] - currentReserves[1]);

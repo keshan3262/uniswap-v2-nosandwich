@@ -93,9 +93,12 @@ export const SwapForm = () => {
       setSwapsResults({
         butterSwap: doButterSwapSimulation(
           [processedValues.initialA, processedValues.initialB],
-          toButterSwapParams(processedValues.swaps),
+          toButterSwapParams(Object.assign([], processedValues.swaps)),
         ),
-        uniSwap: doUniSwapSimulation([processedValues.initialA, processedValues.initialB], processedValues.swaps),
+        uniSwap: doUniSwapSimulation(
+          [processedValues.initialA, processedValues.initialB],
+          Object.assign([], processedValues.swaps),
+        ),
       });
     } catch (error) {
       console.error(error);
