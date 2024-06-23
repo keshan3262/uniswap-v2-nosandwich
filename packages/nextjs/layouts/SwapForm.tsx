@@ -17,14 +17,8 @@ import {
 import { formatUnits, parseUnits } from "viem";
 import { ArrowsRightLeftIcon } from "@heroicons/react/24/outline";
 import { SlippageToleranceOption } from "~~/components/SlippageToleranceOption";
-import { SwapsResultsView } from "~~/components/SwapsResultsView";
-import {
-  SimulationResult,
-  doButterSwapSimulation,
-  doUniSwapSimulation,
-  getAmountOut,
-  toButterSwapParams,
-} from "~~/utils/math";
+import { SwapsResults, SwapsResultsView } from "~~/components/SwapsResultsView";
+import { doButterSwapSimulation, doUniSwapSimulation, getAmountOut, toButterSwapParams } from "~~/utils/math";
 import { notification } from "~~/utils/scaffold-eth";
 import { createAmountValidationFn } from "~~/utils/validations";
 
@@ -39,11 +33,6 @@ interface SwapFormValues {
   initialA: string;
   initialB: string;
   swapsParams: RawSwapParams[];
-}
-
-interface SwapsResults {
-  butterSwap: SimulationResult;
-  uniSwap: SimulationResult;
 }
 
 const slippageToleranceOptions = ["0.1", "0.5", "1", "5", "10"];
@@ -82,26 +71,20 @@ export const SwapForm = () => {
       return;
     }
 
-    const processedValues = {
-      initialA: parseUnits(values.initialA, 6),
-      initialB: parseUnits(values.initialB, 6),
-      swaps: values.swapsParams.map(swap => ({
-        amountIn: parseUnits(swap.amountIn, 6),
-        tokenIn: swap.tokenIn === "0" ? (0 as const) : (1 as const),
-        amountOut: parseUnits(swap.amountOut, 6),
-      })),
-    };
-    console.log("oy vey 1", processedValues);
+    const { initialA: rawInitialA, initialB: rawInitialB, swapsParams: rawSwapsParams } = values;
+
+    const swaps = rawSwapsParams.map(({ amountIn, amountOut, tokenIn }) => ({
+      amountIn: parseUnits(amountIn, 6),
+      tokenIn: tokenIn === "0" ? (0 as const) : (1 as const),
+      amountOut: parseUnits(amountOut, 6),
+    }));
+    const initialA = parseUnits(rawInitialA, 6);
+    const initialB = parseUnits(rawInitialB, 6);
     try {
       setSwapsResults({
-        butterSwap: doButterSwapSimulation(
-          [processedValues.initialA, processedValues.initialB],
-          toButterSwapParams(Object.assign([], processedValues.swaps)),
-        ),
-        uniSwap: doUniSwapSimulation(
-          [processedValues.initialA, processedValues.initialB],
-          Object.assign([], processedValues.swaps),
-        ),
+        butterSwap: doButterSwapSimulation([initialA, initialB], toButterSwapParams(Object.assign([], swaps))),
+        uniSwap: doUniSwapSimulation([initialA, initialB], Object.assign([], swaps)),
+        originalSwaps: swaps,
       });
     } catch (error) {
       console.error(error);

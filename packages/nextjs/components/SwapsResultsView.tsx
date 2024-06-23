@@ -1,9 +1,25 @@
+import {
+  /* useCallback, */
+  useEffect,
+  /* useMemo, */
+  useRef,
+  useState,
+  /*, useState */
+} from "react";
+import BigNumber from "bignumber.js";
+import {
+  Chart,
+  /* ChartData, */
+  registerables,
+} from "chart.js";
 import { formatUnits } from "viem";
-import { SimulationResult, SwapResult } from "~~/utils/math";
+// import { ChevronLeftIcon, ChevronRightIcon } from "@heroicons/react/24/outline";
+import { SimulationResult, SwapParams, SwapResult } from "~~/utils/math";
 
-interface SwapsResults {
+export interface SwapsResults {
   butterSwap: SimulationResult;
   uniSwap: SimulationResult;
+  originalSwaps: SwapParams[];
 }
 
 interface SwapsResultsViewProps {
@@ -11,8 +27,125 @@ interface SwapsResultsViewProps {
 }
 
 export const SwapsResultsView = ({ results }: SwapsResultsViewProps) => {
-  const { reserves: butterSwapReserves, swaps: butterSwapSwaps } = results.butterSwap;
-  const { reserves: uniSwapReserves, swaps: uniSwapSwaps } = results.uniSwap;
+  const { butterSwap, uniSwap, originalSwaps } = results;
+  const illustrationCanvasRef = useRef<HTMLCanvasElement>(null);
+  const wrapperRef = useRef<HTMLDivElement>(null);
+  const [canvasSize, setCanvasSize] = useState(300);
+  const { reserves: butterSwapReserves, swaps: butterSwapSwaps } = butterSwap;
+  const { reserves: uniSwapReserves, swaps: uniSwapSwaps } = uniSwap;
+
+  /* const [chartIndex, setChartIndex] = useState(0);
+  const goToPrevChart = useCallback(() => setChartIndex(index => index - 1), []);
+  const goToNextChart = useCallback(() => setChartIndex(index => index + 1), []); */
+
+  useEffect(() => {
+    Chart.register(...registerables);
+    if (wrapperRef.current) {
+      setCanvasSize(wrapperRef.current.clientWidth);
+    }
+  }, []);
+
+  useEffect(() => {
+    if (!illustrationCanvasRef.current) {
+      return;
+    }
+
+    const ctx = illustrationCanvasRef.current.getContext("2d");
+
+    if (!ctx) {
+      return;
+    }
+
+    const sortedSwapsData = [...originalSwaps]
+      .map(({ amountIn, amountOut, tokenIn }) => {
+        const formattedAmountIn = new BigNumber(amountIn.toString()).div(1e6).toNumber();
+        const formattedAmountOut = new BigNumber(amountOut.toString()).div(1e6).toNumber();
+
+        return {
+          price: tokenIn === 0 ? formattedAmountIn / formattedAmountOut : formattedAmountOut / formattedAmountIn,
+          amount: tokenIn === 0 ? formattedAmountIn : -formattedAmountOut,
+        };
+      })
+      .sort((a, b) => a.price - b.price);
+    const labels = [...new Set(sortedSwapsData.map(({ price }) => price.toString()))];
+    const poolPrice = new BigNumber(butterSwapReserves[0].toString()).div(butterSwapReserves[1].toString()).toNumber();
+    const chart = new Chart(ctx, {
+      type: "bar",
+      data: {
+        labels,
+        datasets: [
+          {
+            label: "Buy",
+            data: sortedSwapsData.map(({ amount }) => Math.max(amount, 0)),
+            backgroundColor: "#34EEB6",
+            stack: "stack",
+          },
+          {
+            label: "Sell",
+            data: sortedSwapsData.map(({ amount }) => Math.min(amount, 0)),
+            backgroundColor: "#FF8863",
+            stack: "stack",
+          },
+        ],
+      },
+      options: {
+        scales: {
+          x: { stacked: true },
+          y: { stacked: true },
+        },
+        elements: {
+          bar: { borderWidth: 1 },
+          line: { borderWidth: 1 },
+        },
+        responsive: true,
+      },
+      plugins: [
+        {
+          id: "verticalLinePlugin",
+          afterDatasetsDraw(chart) {
+            try {
+              console.log("oy vey 1", poolPrice);
+              const xScale = chart.scales.x;
+              const yScale = chart.scales.y;
+              const closestLeftLabelIndex = labels.findLastIndex(label => Number(label) < poolPrice);
+              const closestRightLabelIndex = labels.findIndex(label => Number(label) > poolPrice);
+              let xValue: number;
+              if (closestLeftLabelIndex >= 0 && closestRightLabelIndex >= 0) {
+                const closestLeftX = Number(labels[closestLeftLabelIndex]);
+                const closestRightX = Number(labels[closestRightLabelIndex]);
+                xValue = closestLeftLabelIndex + (poolPrice - closestLeftX) / (closestRightX - closestLeftX);
+              } else if (closestLeftLabelIndex >= 0) {
+                xValue = labels.length - 0.6;
+              } else {
+                xValue = 0;
+              }
+              const x = xScale.getPixelForValue(xValue);
+              chart.ctx.beginPath();
+              chart.ctx.moveTo(x, yScale.bottom);
+              chart.ctx.strokeStyle = "#ff0000";
+              chart.ctx.lineTo(x, yScale.top);
+              chart.ctx.stroke();
+              const prevFillStyle = chart.ctx.fillStyle;
+              chart.ctx.fillStyle = "#ff0000";
+              const displayedPoolPrice = new BigNumber(poolPrice).precision(4).toFixed();
+              const digitsCount = displayedPoolPrice.length - (displayedPoolPrice.includes(".") ? 1 : 0);
+              const approximateWidth = 6.75 * digitsCount + (displayedPoolPrice.includes(".") ? 3 : 0);
+              ctx.fillText(
+                displayedPoolPrice,
+                xValue < labels.length / 2 ? x + 4 : x - approximateWidth - 4,
+                yScale.top + 16,
+              );
+              chart.ctx.fillStyle = prevFillStyle;
+            } catch (error) {
+              console.log(error);
+            }
+          },
+        },
+      ],
+    });
+
+    return () => chart.destroy();
+  }, [butterSwapReserves, originalSwaps]);
 
   return (
     <>
@@ -56,6 +189,17 @@ export const SwapsResultsView = ({ results }: SwapsResultsViewProps) => {
             ))}
           </tbody>
         </table>
+      </div>
+      <div className="w-full flex items-center justify-between">
+        {/* <button className="btn btn-ghost" disabled={chartIndex === 0} onClick={goToPrevChart}>
+          <ChevronLeftIcon className="h-5 w-5" />
+        </button> */}
+        <div className="bg-white w-full" ref={wrapperRef}>
+          <canvas ref={illustrationCanvasRef} width={canvasSize} height={canvasSize} />
+        </div>
+        {/* <button className="btn btn-ghost" disabled={chartIndex === chartsData.length - 1} onClick={goToNextChart}>
+          <ChevronRightIcon className="h-5 w-5" />
+        </button> */}
       </div>
     </>
   );

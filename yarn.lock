@@ -859,6 +859,13 @@ __metadata:
   languageName: node
   linkType: hard
 
+"@kurkle/color@npm:^0.3.0":
+  version: 0.3.2
+  resolution: "@kurkle/color@npm:0.3.2"
+  checksum: 79e97b31f8f6efb28c69d373f94b0c7480226fe8ec95221f518ac998e156444a496727ce47de6d728eb5c3369288e794cba82cae34253deb0d472d3bfe080e49
+  languageName: node
+  linkType: hard
+
 "@lit-labs/ssr-dom-shim@npm:^1.0.0, @lit-labs/ssr-dom-shim@npm:^1.1.0":
   version: 1.2.0
   resolution: "@lit-labs/ssr-dom-shim@npm:1.2.0"
@@ -2009,6 +2016,7 @@ __metadata:
     bignumber.js: ^9.1.2
     blo: ^1.0.1
     burner-connector: ^0.0.8
+    chart.js: ^4.4.3
     daisyui: 4.5.0
     eslint: ^8.15.0
     eslint-config-next: ^14.0.4
@@ -4814,6 +4822,15 @@ __metadata:
   version: 0.0.2
   resolution: "charenc@npm:0.0.2"
   checksum: 81dcadbe57e861d527faf6dd3855dc857395a1c4d6781f4847288ab23cffb7b3ee80d57c15bba7252ffe3e5e8019db767757ee7975663ad2ca0939bb8fcaf2e5
+  languageName: node
+  linkType: hard
+
+"chart.js@npm:^4.4.3":
+  version: 4.4.3
+  resolution: "chart.js@npm:4.4.3"
+  dependencies:
+    "@kurkle/color": ^0.3.0
+  checksum: 94c8d174b0d3414d50f145d4faa00bd12417bc48b18f96ac6c56f6225ec23cdc085038dddf45f77e472c5034d97e44cc23fbe35beb70d906addddd632a8c2ada
   languageName: node
   linkType: hard
 

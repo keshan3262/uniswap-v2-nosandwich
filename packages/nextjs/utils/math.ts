@@ -1,4 +1,4 @@
-interface SwapParams {
+export interface SwapParams {
   amountIn: bigint;
   amountOut: bigint;
   /* 0 stands for selling the first token */
