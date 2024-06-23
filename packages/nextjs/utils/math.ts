@@ -32,6 +32,7 @@ function toButterSwapParam(swap: SwapParams): BSwapParams {
 
 // eslint-disable-next-line @typescript-eslint/no-unused-vars
 export function toButterSwapParams(swaps: SwapParams[]): BSwapParams[] {
+  console.log(swaps);
   return swaps.map(toButterSwapParam);
 }
 
@@ -143,6 +144,10 @@ function doClearing(
   clearingSteps: Array<any> = [],
 ) {
   console.log("doClearing");
+  console.log(clearingSteps);
+  console.log(slot0);
+  console.log(ticksInfo);
+  // console.log(ticksInfo);
   const sortedTicks: number[] = Object.keys(ticksInfo)
     .map(tick => Number(tick))
     .sort((a, b) => (a > b ? 1 : -1));
@@ -165,7 +170,8 @@ function doClearing(
       break;
     }
     const tickAfterSwap = priceToTick(Number(newReserves[0]) / Number(newReserves[1]));
-    // console.log(tickAfterSwap);
+    console.log(tickAfterSwap);
+    console.log(slot0.maxTickBuy);
 
     if (tickAfterSwap < slot0.maxTickBuy) {
       // finalPriceTick = tickAfterSwap;
@@ -174,12 +180,12 @@ function doClearing(
 
       const nextTick = sortedTicks.reverse().find(tick => tick < slot0.maxTickBuy);
       // console.log(nextTick);
-      if (nextTick === undefined) {
-        break;
-      }
+
       // console.log(slot0.maxTickBuy);
       // console.log(nextTick);
-      slot0.maxTickBuy = nextTick;
+      // TODO: tick at price0
+      console.log("SWAP BUY");
+      slot0.maxTickBuy = nextTick === undefined ? priceToTick(0) : nextTick;
       clearingSteps.push({
         reserves: { startReserves, endReserves: currentReserves },
         ticks: {
@@ -190,9 +196,12 @@ function doClearing(
         prices: {
           priceBefore: tickToPrice(tickPointer).toFixed(18),
           priceAfter: tickToPrice(tickAfterSwap).toFixed(18),
-          priceNext: tickToPrice(nextTick).toFixed(18),
+          priceNext: tickToPrice(slot0.maxTickBuy).toFixed(18),
         },
       });
+      if (nextTick === undefined) {
+        break;
+      }
     } else {
       break;
     }
@@ -215,6 +224,7 @@ function doClearing(
     }
     const tickAfterSwap = priceToTick(Number(newReserves[0]) / Number(newReserves[1]));
     // console.log(tickAfterSwap);
+    console.log("SWAP SELL");
 
     if (tickAfterSwap > slot0.minTickSell) {
       // finalPriceTick = tickAfterSwap;
@@ -223,12 +233,12 @@ function doClearing(
 
       const nextTick = sortedTicks.find(tick => tick > slot0.minTickSell);
       console.log(nextTick);
-      if (nextTick === undefined) {
-        break;
-      }
+      // if (nextTick === undefined) {
+      //   break;
+      // }
       // console.log(slot0.minTickSell);
       // console.log(nextTick);
-      slot0.minTickSell = nextTick;
+      slot0.minTickSell = nextTick === undefined ? infinity : nextTick;
       clearingSteps.push({
         reserves: { startReserves, endReserves: currentReserves },
         ticks: {
@@ -239,9 +249,12 @@ function doClearing(
         prices: {
           priceBefore: tickToPrice(tickPointer).toFixed(18),
           priceAfter: tickToPrice(tickAfterSwap).toFixed(18),
-          priceNext: tickToPrice(nextTick).toFixed(18),
+          priceNext: tickToPrice(slot0.minTickSell).toFixed(18),
         },
       });
+      if (nextTick === undefined) {
+        break;
+      }
     } else {
       break;
     }
@@ -249,9 +262,11 @@ function doClearing(
   // We should check if we need to do more clearing
   // Will be implemented as recursion call.
   // Will optimize later.
-  if (currentTick < slot0.maxTickBuy || currentTick > slot0.minTickSell) {
-    return doClearing(currentTick, currentReserves, ticksInfo, slot0, clearingSteps);
-  }
+  console.log(currentTick, slot0.maxTickBuy, slot0.minTickSell);
+  console.log(currentReserves);
+  // if (currentTick < slot0.maxTickBuy || currentTick > slot0.minTickSell) {
+  //   return doClearing(currentTick, currentReserves, ticksInfo, slot0, clearingSteps);
+  // }
   console.log(sortedTicks);
   console.log(JSON.stringify(clearingSteps, (key, value) => (typeof value === "bigint" ? value.toString() : value), 2));
   return { currentReserves, currentTick, slot0, clearingSteps };
@@ -265,7 +280,7 @@ export function doButterSwapSimulation(reserves: [bigint, bigint], swaps: BSwapP
   const ticksInfo: { [tick: number]: TickInfo } = {};
   const slot0 = {
     minTickSell: infinity,
-    maxTickBuy: 0,
+    maxTickBuy: priceToTick(0),
   };
 
   // STORE INTENDS
@@ -283,7 +298,7 @@ export function doButterSwapSimulation(reserves: [bigint, bigint], swaps: BSwapP
     // buy token 1
     if (swap.tokenIn === 0) {
       // TODO: calculate based on prices
-      const minTick = 0;
+      const minTick = priceToTick(0);
       // console.log(swap.amountIn / swap.amountOut);
       const maxTick = Number(swap.maxTick);
       if (slot0.maxTickBuy < maxTick) {
@@ -356,7 +371,10 @@ export function doButterSwapSimulation(reserves: [bigint, bigint], swaps: BSwapP
     currentReserves,
     currentTick: finalPriceTick,
     slot0: newSlot0,
+    clearingSteps,
   } = doClearing(priceToTick(Number(reserves[0]) / Number(reserves[1])), [reserves[0], reserves[1]], ticksInfo, slot0);
+  console.log("clearingSteps");
+  console.log(clearingSteps);
   console.log(newSlot0);
   slot0.minTickSell = newSlot0.minTickSell;
   slot0.maxTickBuy = newSlot0.maxTickBuy;
@@ -372,8 +390,10 @@ export function doButterSwapSimulation(reserves: [bigint, bigint], swaps: BSwapP
   // DISTRIBUTE
   const swapResult: SwapResult[] = [];
   for (const pendingSwap of pendingSwaps) {
-    const { amountIn, tokenIn /*, maxTick, minTick */ } = pendingSwap;
-    if (tokenIn === 0) {
+    console.log(pendingSwap);
+    console.log(finalPriceTick);
+    const { amountIn, tokenIn, maxTick, minTick } = pendingSwap;
+    if (tokenIn === 0 && finalPriceTick < maxTick && slot0.maxTickBuy < maxTick) {
       // If token0in was sent by user, then he receives token0in*reserves1diff /reserves0diff.
       const amountOut = (amountIn * totalReserves1Diff) / totalReserves0Diff;
       swapResult.push({
@@ -382,13 +402,20 @@ export function doButterSwapSimulation(reserves: [bigint, bigint], swaps: BSwapP
         status: "success",
         tokenIn: tokenIn,
       });
-    } else {
+    } else if (tokenIn === 1 && finalPriceTick > minTick && slot0.minTickSell > minTick) {
       // If token1in was sent by user, then he receives token1in*reserves0diff /reserves1diff.
       const amountOut = (amountIn * totalReserves0Diff) / totalReserves1Diff;
       swapResult.push({
         amountIn: amountIn,
         amountOut: amountOut,
         status: "success",
+        tokenIn: tokenIn,
+      });
+    } else {
+      swapResult.push({
+        amountIn: amountIn,
+        amountOut: 0n,
+        status: "failure",
         tokenIn: tokenIn,
       });
     }
@@ -399,32 +426,3 @@ export function doButterSwapSimulation(reserves: [bigint, bigint], swaps: BSwapP
     swaps: swapResult,
   };
 }
-
-// console.log(doButterSwapSimulation([100n, 100n], [{ amountIn: 100n, tokenIn: 0, amountOut: 10n }]));
-// console.log(
-//   doButterSwapSimulation(
-//     // [27304660873n, 10923529923371156n],
-//     [17254660873n, 17266812360338870n],
-//     [
-//       { amountIn: 50000000n, tokenIn: 0, amountOut: 8n },
-//       { amountIn: 10000000000n, tokenIn: 0, amountOut: 10000n },
-//       { amountIn: 49741399943636n, tokenIn: 1, amountOut: 8n },
-//       // { amountIn: 5n, tokenIn: 0, amountOut: 4n },
-//       // { amountIn: 10n, tokenIn: 0, amountOut: 1n },
-//     ],
-//   ),
-// );
-// console.log(
-//   doButterSwapSimulation(
-//     [100n, 100n],
-//     toButterSwapParams([
-//       { amountIn: 10n, tokenIn: 0, amountOut: 8n },
-//       { amountIn: 5n, tokenIn: 0, amountOut: 4n },
-//       { amountIn: 10n, tokenIn: 0, amountOut: 1n },
-//       { amountIn: 5n, tokenIn: 0, amountOut: 1n },
-//       { amountIn: 12n, tokenIn: 1, amountOut: 8n },
-//       { amountIn: 5n, tokenIn: 1, amountOut: 2n },
-//       { amountIn: 8n, tokenIn: 1, amountOut: 1n },
-//     ]),
-//   ),
-// );
