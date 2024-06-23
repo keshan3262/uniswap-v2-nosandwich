@@ -10,7 +10,7 @@ const Home: NextPage = () => {
       <div className="flex justify-center items-center flex-col flex-grow p-10 sm:p-5">
         <div
           role="tablist"
-          className="tabs tabs-bordered w-full max-w-xl bg-white rounded-lg shadow-center grid-cols-3"
+          className="tabs tabs-bordered w-full max-w-xl bg-white dark:bg-gray-500 rounded-lg shadow-center grid-cols-3"
         >
           <input type="radio" name="my_tabs_1" role="tab" className="tab" aria-label="Deploy token" />
           <div role="tabpanel" className="tab-content text-sm p-10 sm:p-5">

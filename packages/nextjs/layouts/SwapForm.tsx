@@ -114,7 +114,7 @@ export const SwapForm = () => {
             <input
               type="text"
               placeholder="0"
-              className="grow"
+              className="grow bg-transparent"
               {...register("initialA", { validate: validateAmount })}
             />
             <div className="h-full bordered border-r ml-2" />
@@ -132,7 +132,7 @@ export const SwapForm = () => {
             <input
               type="text"
               placeholder="0"
-              className="grow"
+              className="grow bg-transparent"
               {...register("initialB", { validate: validateAmount })}
             />
             <div className="h-full bordered border-r ml-2" />
@@ -234,7 +234,7 @@ export const SwapItem = ({ errors, index, onRemoveClick, setValue, register, wat
               <input
                 type="text"
                 placeholder="0"
-                className="grow w-full"
+                className="grow w-full bg-transparent"
                 {...restAmountInHookFormProps}
                 onChange={handleAmountInChange}
               />
@@ -259,7 +259,7 @@ export const SwapItem = ({ errors, index, onRemoveClick, setValue, register, wat
             <input
               type="text"
               placeholder="0"
-              className="grow w-full"
+              className="grow w-full bg-transparent"
               readOnly
               {...register(amountOutPath, { validate: validateAmount })}
             />
