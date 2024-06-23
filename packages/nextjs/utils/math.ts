@@ -94,8 +94,6 @@ export function doUniSwapSimulation(reserves: [bigint, bigint], swaps: SwapParam
     }
 
     const amountOut = getAmountOut(reserves, swap.amountIn, swap.tokenIn);
-    console.log(amountOut);
-    console.log(swap.amountOut);
 
     if (amountOut < swap.amountOut) {
       result.push({
@@ -176,19 +174,9 @@ function doClearing(
       const nextTick = sortedTicks.reverse().find(tick => tick < slot0.maxTickBuy);
       console.log("SWAP BUY");
       slot0.maxTickBuy = nextTick === undefined ? priceToTick(0) : nextTick;
-      clearingSteps.push({
-        reserves: { startReserves, endReserves: currentReserves },
-        ticks: {
-          tickPointer,
-          tickAfterSwap,
-          nextTick,
-        },
-        prices: {
-          priceBefore: tickToPrice(tickPointer).toFixed(18),
-          priceAfter: tickToPrice(tickAfterSwap).toFixed(18),
-          priceNext: tickToPrice(slot0.maxTickBuy).toFixed(18),
-        },
-      });
+      // currentTick = tickAfterSwap;
+      // PUSH_DATASET: we write  getDataset(ticksInfo, currentTick)
+
       if (nextTick === undefined) {
         break;
       }
@@ -217,21 +205,10 @@ function doClearing(
       currentReserves = newReserves;
 
       const nextTick = sortedTicks.find(tick => tick > slot0.minTickSell);
-
+      // currentTick = tickAfterSwap;
       slot0.minTickSell = nextTick === undefined ? infinity : nextTick;
-      clearingSteps.push({
-        reserves: { startReserves, endReserves: currentReserves },
-        ticks: {
-          tickPointer,
-          tickAfterSwap,
-          nextTick,
-        },
-        prices: {
-          priceBefore: tickToPrice(tickPointer).toFixed(18),
-          priceAfter: tickToPrice(tickAfterSwap).toFixed(18),
-          priceNext: tickToPrice(slot0.minTickSell).toFixed(18),
-        },
-      });
+      // PUSH_DATASET: we write  getDataset(ticksInfo, currentTick)
+
       if (nextTick === undefined) {
         break;
       }
@@ -305,6 +282,7 @@ export function doButterSwapSimulation(reserves: [bigint, bigint], swaps: BSwapP
         supply1Diff: ticksInfo[maxTick].supply1Diff,
         min1Out: ticksInfo[maxTick].min1Out + minAmountOut,
       };
+      // PUSH_DATASET: we write  getDataset(ticksInfo, currentTick)
     }
     // sell token 1
     else {
@@ -341,10 +319,11 @@ export function doButterSwapSimulation(reserves: [bigint, bigint], swaps: BSwapP
         supply1Diff: ticksInfo[maxTick].supply1Diff - swap.amountIn,
         min1Out: ticksInfo[maxTick].min1Out,
       };
+      // PUSH_DATASET: we write  getDataset(ticksInfo, currentTick)
     }
   }
   // console.log(pendingSwaps);
-  // console.log(ticksInfo);
+  console.log(ticksInfo);
   // CLEARING
 
   const {
